@@ -110,6 +110,19 @@ app.get("/", (req, res) => {
     res.send("Interior Website API Running");
 });
 
+// Debug env check route
+app.get("/api/debug-env-xyz", (req, res) => {
+    const geminiKeyLower = process.env.gemini_api_key || '';
+    const geminiKeyUpper = process.env.GEMINI_API_KEY || '';
+    res.json({
+        gemini_api_key_present: !!geminiKeyLower,
+        gemini_api_key_prefix: geminiKeyLower.substring(0, 12),
+        GEMINI_API_KEY_present: !!geminiKeyUpper,
+        GEMINI_API_KEY_prefix: geminiKeyUpper.substring(0, 12),
+        all_env_keys: Object.keys(process.env).filter(k => k.toLowerCase().includes('gemini'))
+    });
+});
+
 // Server
 const PORT = process.env.PORT || 5000;
 
