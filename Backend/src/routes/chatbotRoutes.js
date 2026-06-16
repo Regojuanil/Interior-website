@@ -5,7 +5,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const db = require("../config/db");
 
 const genAI = new GoogleGenerativeAI(
-    process.env.GEMINI_API_KEY
+    process.env.gemini_api_key || process.env.GEMINI_API_KEY
 );
 
 router.post("/", (req, res) => {
