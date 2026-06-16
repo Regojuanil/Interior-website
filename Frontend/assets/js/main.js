@@ -1,6 +1,6 @@
 // Frontend script — contact form + chatbot integration
 
-const API_BASE_URL = "https://YOUR_RENDER_BACKEND_URL/api";
+const API_BASE_URL = "https://interior-website-z9e9.onrender.com/api";
 
 const contactForm = document.getElementById("contactForm");
 
