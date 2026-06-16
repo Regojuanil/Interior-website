@@ -43,10 +43,16 @@ app.get("/api/init-db-secure-xyz", (req, res) => {
     schemaSql = schemaSql.replace(/CREATE DATABASE[\s\S]*?;/i, '');
     schemaSql = schemaSql.replace(/USE[\s\S]*?;/i, '');
 
-    const queries = schemaSql
+    const cleanSql = schemaSql
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => !line.startsWith('--'))
+      .join('\n');
+
+    const queries = cleanSql
       .split(';')
       .map(query => query.trim())
-      .filter(query => query.length > 0 && !query.startsWith('--'));
+      .filter(query => query.length > 0);
 
     console.log(`Executing ${queries.length} SQL statements remotely...`);
 

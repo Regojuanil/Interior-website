@@ -34,11 +34,17 @@ connection.connect((err) => {
   schemaSql = schemaSql.replace(/CREATE DATABASE[\s\S]*?;/i, '');
   schemaSql = schemaSql.replace(/USE[\s\S]*?;/i, '');
 
-  // Split queries by semicolon
-  const queries = schemaSql
+  // Split queries by semicolon, removing comments first
+  const cleanSql = schemaSql
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => !line.startsWith('--'))
+    .join('\n');
+
+  const queries = cleanSql
     .split(';')
     .map(query => query.trim())
-    .filter(query => query.length > 0 && !query.startsWith('--'));
+    .filter(query => query.length > 0);
 
   console.log(`Executing ${queries.length} SQL statements to initialize tables and seed data...`);
 
