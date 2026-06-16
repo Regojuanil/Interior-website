@@ -98,10 +98,15 @@ async function generateBotResponse(message, products, orderContext, res) {
         return res.json({ success: true, reply });
 
     } catch (error) {
-        console.error("Gemini chatbot error:", error);
+        const errMsg = error && error.message ? error.message : String(error);
+        const apiKeyPresent = !!(process.env.gemini_api_key || process.env.GEMINI_API_KEY);
+        console.error("Gemini chatbot error:", errMsg);
+        console.error("API Key present:", apiKeyPresent, "| Key prefix:", (process.env.gemini_api_key || process.env.GEMINI_API_KEY || '').substring(0, 10));
         res.status(500).json({
             success: false,
-            reply: "AI service unavailable at the moment."
+            reply: "AI service unavailable at the moment.",
+            debug_error: errMsg,
+            debug_key_present: apiKeyPresent
         });
     }
 }
