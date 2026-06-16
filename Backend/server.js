@@ -71,6 +71,29 @@ app.get("/api/init-db-secure-xyz", (req, res) => {
     executeNext(0);
 });
 
+// Route to check database state remotely
+app.get("/api/check-db-secure-xyz", (req, res) => {
+    const db = require("./src/config/db");
+    db.query("SHOW TABLES", (err, tables) => {
+        if (err) return res.status(500).json({ success: false, error: err.message });
+        
+        db.query("DESCRIBE products", (err2, columns) => {
+            const desc = err2 ? { error: err2.message } : columns;
+            
+            db.query("SELECT * FROM products", (err3, rows) => {
+                const prodRows = err3 ? { error: err3.message } : rows;
+                
+                res.json({
+                    success: true,
+                    tables: tables,
+                    productsDescription: desc,
+                    products: prodRows
+                });
+            });
+        });
+    });
+});
+
 // Test Route
 app.get("/", (req, res) => {
     res.send("Interior Website API Running");
