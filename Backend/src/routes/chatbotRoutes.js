@@ -88,21 +88,14 @@ async function generateBotResponse(message, products, orderContext, res) {
         `;
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash-lite"
+            model: "gemini-1.5-flash"
         });
 
         const result = await model.generateContent(prompt);
         const reply = result.response.text();
 
-        // Save conversation to MySQL (chat_messages)
-        const sql = `INSERT INTO chat_messages (user_message, bot_reply) VALUES (?, ?)`;
-        db.query(sql, [message, reply], (err) => {
-            if (err) {
-                console.error('Failed to save chat message:', err);
-                return res.json({ success: true, reply });
-            }
-            return res.json({ success: true, reply });
-        });
+        // Return the AI reply
+        return res.json({ success: true, reply });
 
     } catch (error) {
         console.error("Gemini chatbot error:", error);
