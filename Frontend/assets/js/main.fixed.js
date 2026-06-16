@@ -1,5 +1,7 @@
 // Fixed main.js - corrected template literals and added chat UX improvements
 
+const API_BASE_URL = "https://YOUR_RENDER_BACKEND_URL/api";
+
 const contactForm = document.getElementById("contactForm");
 
 if (contactForm) {
@@ -14,7 +16,7 @@ if (contactForm) {
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/contact", {
+      const response = await fetch(`${API_BASE_URL}/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -86,7 +88,7 @@ async function sendMessage() {
   chatInput.focus();
 
   try {
-    const response = await fetch("http://localhost:5000/api/chatbot", {
+    const response = await fetch(`${API_BASE_URL}/chatbot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message }),
