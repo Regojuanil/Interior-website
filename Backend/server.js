@@ -89,11 +89,16 @@ app.get("/api/check-db-secure-xyz", (req, res) => {
             db.query("SELECT * FROM products", (err3, rows) => {
                 const prodRows = err3 ? { error: err3.message } : rows;
                 
-                res.json({
-                    success: true,
-                    tables: tables,
-                    productsDescription: desc,
-                    products: prodRows
+                db.query("SELECT * FROM inquiries", (err4, inquiries) => {
+                    const inquiryRows = err4 ? { error: err4.message } : inquiries;
+                    
+                    res.json({
+                        success: true,
+                        tables: tables,
+                        productsDescription: desc,
+                        products: prodRows,
+                        inquiries: inquiryRows
+                    });
                 });
             });
         });
