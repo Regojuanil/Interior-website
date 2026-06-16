@@ -28,6 +28,49 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/admin", adminRoutes);
 
+// Route to initialize and seed database remotely
+app.get("/api/init-db-secure-xyz", (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const db = require("./src/config/db");
+
+    const schemaPath = path.join(__dirname, '..', 'Database', 'schema.sql');
+    if (!fs.existsSync(schemaPath)) {
+        return res.status(404).json({ success: false, message: "schema.sql not found at " + schemaPath });
+    }
+
+    let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    schemaSql = schemaSql.replace(/CREATE DATABASE[\s\S]*?;/i, '');
+    schemaSql = schemaSql.replace(/USE[\s\S]*?;/i, '');
+
+    const queries = schemaSql
+      .split(';')
+      .map(query => query.trim())
+      .filter(query => query.length > 0 && !query.startsWith('--'));
+
+    console.log(`Executing ${queries.length} SQL statements remotely...`);
+
+    let executedCount = 0;
+    
+    function executeNext(index) {
+        if (index >= queries.length) {
+            return res.json({ success: true, message: `Successfully executed ${executedCount} queries to initialize database.` });
+        }
+
+        const q = queries[index];
+        db.query(q, (err) => {
+            if (err) {
+                console.error(`Error executing statement #${index + 1}:`, err);
+                return res.status(500).json({ success: false, error: err.message, query: q, index: index + 1 });
+            }
+            executedCount++;
+            executeNext(index + 1);
+        });
+    }
+
+    executeNext(0);
+});
+
 // Test Route
 app.get("/", (req, res) => {
     res.send("Interior Website API Running");

@@ -4,6 +4,13 @@
 CREATE DATABASE IF NOT EXISTS interior_db;
 USE interior_db;
 
+-- Drop existing tables to start fresh
+DROP TABLE IF EXISTS inquiries;
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS products;
+
 -- 1. Products Table
 CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -11,6 +18,16 @@ CREATE TABLE IF NOT EXISTS products (
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
     image_url VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 1b. Inquiries Table
+CREATE TABLE IF NOT EXISTS inquiries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
