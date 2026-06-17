@@ -132,8 +132,72 @@ app.get("/api/debug-env-xyz", (req, res) => {
         gemini_api_key_prefix: geminiKeyLower.substring(0, 12),
         GEMINI_API_KEY_present: !!geminiKeyUpper,
         GEMINI_API_KEY_prefix: geminiKeyUpper.substring(0, 12),
-        all_env_keys: Object.keys(process.env).filter(k => k.toLowerCase().includes('gemini'))
+        all_env_keys: Object.keys(process.env).filter(k => k.toLowerCase().includes('gemini')),
+        smtp_host: process.env.SMTP_HOST || "NOT SET",
+        smtp_port: process.env.SMTP_PORT || "NOT SET",
+        smtp_user: process.env.SMTP_USER || "NOT SET",
+        smtp_pass_length: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0,
+        smtp_pass_preview: process.env.SMTP_PASS ? process.env.SMTP_PASS.substring(0, 4) + "..." : "NOT SET"
     });
+});
+
+// Live SMTP test route — sends a real test email from the deployed server
+app.get("/api/test-smtp-xyz", async (req, res) => {
+    const nodemailer = require("nodemailer");
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = parseInt(process.env.SMTP_PORT || "587");
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        return res.json({
+            success: false,
+            error: "SMTP credentials missing in environment",
+            smtp_host: smtpHost || "MISSING",
+            smtp_user: smtpUser || "MISSING",
+            smtp_pass_length: smtpPass ? smtpPass.length : 0
+        });
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: false,
+            auth: { user: smtpUser, pass: smtpPass }
+        });
+
+        // Verify connection first
+        await transporter.verify();
+
+        // Send test mail
+        const info = await transporter.sendMail({
+            from: `"Regoju Test" <${smtpUser}>`,
+            to: smtpUser,
+            subject: "✅ SMTP Test from Render Server",
+            text: "SMTP is working correctly from the deployed Render server!"
+        });
+
+        res.json({
+            success: true,
+            messageId: info.messageId,
+            response: info.response,
+            smtp_user: smtpUser,
+            smtp_host: smtpHost,
+            smtp_port: smtpPort
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            error: err.message,
+            code: err.code,
+            command: err.command,
+            smtp_user: smtpUser,
+            smtp_host: smtpHost,
+            smtp_port: smtpPort,
+            smtp_pass_length: smtpPass ? smtpPass.length : 0
+        });
+    }
 });
 
 // Server
