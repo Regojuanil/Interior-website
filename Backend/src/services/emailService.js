@@ -1,10 +1,11 @@
 const nodemailer = require("nodemailer");
 
-// Initialize transporter asynchronously to support dynamic ethereal testing fallback
-const transporterPromise = (async () => {
-    // If SMTP credentials are fully provided in .env, use them
+/**
+ * Creates a fresh SMTP transporter.
+ * Called per email send to avoid stale/expired connections on Render free tier.
+ */
+function getTransporter() {
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        console.log("🚀 Using custom SMTP configuration for email notifications");
         return nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: parseInt(process.env.SMTP_PORT || "587"),
@@ -14,31 +15,21 @@ const transporterPromise = (async () => {
                 pass: process.env.SMTP_PASS
             }
         });
-    } else {
-        // Fallback: Create ethereal test account dynamically
-        console.log("ℹ️ No SMTP credentials configured. Creating temporary Ethereal test account...");
-        const testAccount = await nodemailer.createTestAccount();
-        console.log("✅ Dynamic Ethereal test account created successfully!");
-        console.log(`   Username: ${testAccount.user}`);
-        return nodemailer.createTransport({
-            host: testAccount.smtp.host,
-            port: testAccount.smtp.port,
-            secure: testAccount.smtp.secure,
-            auth: {
-                user: testAccount.user,
-                pass: testAccount.pass
-            }
-        });
     }
-})();
+    return null;
+}
 
 /**
  * Sends a notification email when a new inquiry is submitted
  */
 async function sendInquiryNotification({ name, email, phone, message }) {
     try {
-        const transporter = await transporterPromise;
-        
+        const transporter = getTransporter();
+        if (!transporter) {
+            console.warn("⚠️ Email skipped: SMTP credentials not configured in environment variables.");
+            return { success: false, error: "SMTP not configured" };
+        }
+
         // Recipient credentials
         const targetEmail = "anilregoju@gmail.com";
         const ownerContact = "8247404515";
@@ -85,7 +76,7 @@ async function sendInquiryNotification({ name, email, phone, message }) {
         `;
         
         const mailOptions = {
-            from: '"Regoju Interior Studio" <no-reply@regoju.com>',
+            from: `"Regoju Interior Studio" <${process.env.SMTP_USER}>`,
             to: targetEmail,
             subject: `🔔 New Website Inquiry: ${name}`,
             html: htmlContent
@@ -112,8 +103,12 @@ async function sendInquiryNotification({ name, email, phone, message }) {
  */
 async function sendOrderNotification({ orderId, customerName, customerEmail, customerPhone, address, totalPrice, items, paymentMethod }) {
     try {
-        const transporter = await transporterPromise;
-        
+        const transporter = getTransporter();
+        if (!transporter) {
+            console.warn("⚠️ Order email skipped: SMTP credentials not configured in environment variables.");
+            return { success: false, error: "SMTP not configured" };
+        }
+
         const targetEmail = "anilregoju@gmail.com";
         const ownerContact = "8247404515";
         
@@ -174,7 +169,7 @@ async function sendOrderNotification({ orderId, customerName, customerEmail, cus
         `;
 
         const mailOptions = {
-            from: '"Regoju Interior Studio" <no-reply@regoju.com>',
+            from: `"Regoju Interior Studio" <${process.env.SMTP_USER}>`,
             to: targetEmail,
             subject: `🛍️ New Order Placed: Order #${orderId} (₹${Math.round(totalPrice)})`,
             html: htmlContent

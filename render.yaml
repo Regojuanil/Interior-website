@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: interior-website-backend
+    env: node
+    rootDir: Backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # MySQL (Railway) — set these in Render Dashboard
+      - key: MYSQLHOST
+        sync: false
+      - key: MYSQLUSER
+        sync: false
+      - key: MYSQLPASSWORD
+        sync: false
+      - key: MYSQLDATABASE
+        sync: false
+      - key: MYSQLPORT
+        sync: false
+      # Gmail SMTP — set these in Render Dashboard
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      # Gemini API — set this in Render Dashboard
+      - key: GEMINI_API_KEY
+        sync: false

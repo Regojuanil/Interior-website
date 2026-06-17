@@ -17,8 +17,20 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: [
+        "https://interior-website-z9e9.onrender.com",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "http://localhost:3000",
+        "http://localhost:8080"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+}));
 app.use(express.json());
+
 
 // Routes
 app.use("/api/contact", contactRoutes);

@@ -1,33 +1,31 @@
 const mysql = require("mysql2");
 
-const connection = mysql.createConnection({
+// Use a connection POOL instead of single connection.
+// Render free tier and Railway can drop idle connections — a pool
+// automatically reconnects, preventing "PROTOCOL_CONNECTION_LOST" crashes.
+const pool = mysql.createPool({
   host: process.env.MYSQLHOST,
   user: process.env.MYSQLUSER,
   password: process.env.MYSQLPASSWORD,
   database: process.env.MYSQLDATABASE,
-  port: process.env.MYSQLPORT
+  port: process.env.MYSQLPORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 });
 
-connection.connect((err) => {
+// Test connection on startup
+pool.getConnection((err, connection) => {
   if (err) {
     console.error("❌ MySQL Database Connection Failed!");
     console.error("Error details:", err.message);
     console.error("Code:", err.code);
   } else {
-    console.log("🚀 MySQL Database Connected Successfully to Railway!");
+    console.log("🚀 MySQL Database Pool Connected Successfully to Railway!");
+    connection.release();
   }
 });
 
-// Handle connection errors after initial connection
-connection.on('error', (err) => {
-  console.error('Database connection error occurred:', err);
-  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.error('Database connection was closed.');
-  } else if (err.code === 'ER_CON_COUNT_ERROR') {
-    console.error('Database has too many connections.');
-  } else if (err.code === 'ECONNREFUSED') {
-    console.error('Database connection was refused.');
-  }
-});
-
-module.exports = connection;
+module.exports = pool;
