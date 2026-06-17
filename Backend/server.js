@@ -1,5 +1,5 @@
+// server.js — v2.0 (Resend email API, connection pool, CORS fixed)
 require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
 
