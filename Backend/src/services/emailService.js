@@ -1,35 +1,21 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 /**
- * Creates a fresh SMTP transporter.
- * Uses robust TLS settings compatible with Render/cloud hosting environments.
+ * Email Service — uses Resend HTTP API (not SMTP).
+ * Render free tier blocks outbound SMTP (port 587/465).
+ * Resend uses HTTPS (port 443) which works on all cloud hosts.
  */
-function getTransporter() {
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const port = parseInt(process.env.SMTP_PORT || "587");
 
-    if (!host || !user || !pass) {
-        console.warn(`⚠️ SMTP missing — HOST:${host||'UNSET'} USER:${user||'UNSET'} PASS_LEN:${pass?pass.length:0}`);
+const TARGET_EMAIL = "anilregoju@gmail.com";
+const OWNER_CONTACT = "8247404515";
+
+function getResendClient() {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        console.warn("⚠️ RESEND_API_KEY not set — email notifications disabled.");
         return null;
     }
-
-    console.log(`📧 Creating SMTP transporter: ${host}:${port} user=${user} pass_len=${pass.length}`);
-
-    return nodemailer.createTransport({
-        host: host,
-        port: port,
-        secure: port === 465,       // true for port 465, false for 587
-        requireTLS: port === 587,   // force STARTTLS on port 587
-        auth: {
-            user: user,
-            pass: pass
-        },
-        tls: {
-            rejectUnauthorized: false   // allow Render's cloud outbound TLS
-        }
-    });
+    return new Resend(apiKey);
 }
 
 /**
@@ -37,28 +23,20 @@ function getTransporter() {
  */
 async function sendInquiryNotification({ name, email, phone, message }) {
     try {
-        const transporter = getTransporter();
-        if (!transporter) {
-            console.warn("⚠️ Email skipped: SMTP credentials not configured in environment variables.");
-            return { success: false, error: "SMTP not configured" };
-        }
+        const resend = getResendClient();
+        if (!resend) return { success: false, error: "RESEND_API_KEY not configured" };
 
-        // Recipient credentials
-        const targetEmail = "anilregoju@gmail.com";
-        const ownerContact = "8247404515";
-        
-        // Luxury themed HTML email layout
         const htmlContent = `
         <div style="font-family: 'Montserrat', Helvetica, Arial, sans-serif; background-color: #0f172a; color: #ffffff; padding: 40px 20px; border-radius: 15px; max-width: 600px; margin: 0 auto; border: 1px solid #b89b54; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(184, 155, 84, 0.2); padding-bottom: 20px;">
-                <span style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: 2px; color: #ffffff; text-transform: uppercase;">REGOJU</span><br/>
+                <span style="font-family: Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: 2px; color: #ffffff; text-transform: uppercase;">REGOJU</span><br/>
                 <span style="font-size: 9px; font-weight: 600; letter-spacing: 4px; color: #b89b54; text-transform: uppercase;">INTERIOR STUDIO</span>
             </div>
             
             <div style="background-color: #1e293b; padding: 25px; border-radius: 10px; border-left: 4px solid #b89b54; margin-bottom: 25px;">
-                <h2 style="font-family: 'Playfair Display', Georgia, serif; color: #b89b54; margin-top: 0; font-size: 20px; letter-spacing: 0.5px;">New Consultation Inquiry</h2>
+                <h2 style="font-family: Georgia, serif; color: #b89b54; margin-top: 0; font-size: 20px; letter-spacing: 0.5px;">New Consultation Inquiry</h2>
                 <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">
-                    A customer has submitted an inquiry form on the Regoju Interior Studio website. Below are the details:
+                    A customer has submitted an inquiry form on the Regoju Interior Studio website.
                 </p>
                 
                 <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #cbd5e1;">
@@ -83,31 +61,29 @@ async function sendInquiryNotification({ name, email, phone, message }) {
             
             <div style="text-align: center; padding-top: 10px; font-size: 11px; color: #94a3b8; line-height: 1.5;">
                 <p style="margin: 5px 0;">This is an automated notification from your portfolio inquiry system.</p>
-                <p style="margin: 5px 0; color: #b89b54; font-weight: bold;">Owner Notification Desk: ${targetEmail} | Contact: ${ownerContact}</p>
+                <p style="margin: 5px 0; color: #b89b54; font-weight: bold;">Owner: ${TARGET_EMAIL} | Contact: ${OWNER_CONTACT}</p>
             </div>
         </div>
         `;
-        
-        const mailOptions = {
-            from: `"Regoju Interior Studio" <${process.env.SMTP_USER}>`,
-            to: targetEmail,
+
+        const { data, error } = await resend.emails.send({
+            from: "Regoju Interior Studio <onboarding@resend.dev>",
+            to: [TARGET_EMAIL],
             subject: `🔔 New Website Inquiry: ${name}`,
             html: htmlContent
-        };
-        
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`✉️ Email notification sent successfully! Message ID: ${info.messageId}`);
-        
-        // Ethereal URL logging
-        const previewUrl = nodemailer.getTestMessageUrl(info);
-        if (previewUrl) {
-            console.log(`🔗 Preview Ethereal Email URL: ${previewUrl}`);
+        });
+
+        if (error) {
+            console.error("❌ Resend inquiry email failed:", error);
+            return { success: false, error };
         }
-        
-        return { success: true, messageId: info.messageId, previewUrl };
+
+        console.log(`✉️ Inquiry email sent via Resend! ID: ${data.id}`);
+        return { success: true, messageId: data.id };
+
     } catch (err) {
-        console.error("❌ Failed to send email notification:", err);
-        return { success: false, error: err };
+        console.error("❌ Failed to send inquiry notification:", err.message);
+        return { success: false, error: err.message };
     }
 }
 
@@ -116,15 +92,9 @@ async function sendInquiryNotification({ name, email, phone, message }) {
  */
 async function sendOrderNotification({ orderId, customerName, customerEmail, customerPhone, address, totalPrice, items, paymentMethod }) {
     try {
-        const transporter = getTransporter();
-        if (!transporter) {
-            console.warn("⚠️ Order email skipped: SMTP credentials not configured in environment variables.");
-            return { success: false, error: "SMTP not configured" };
-        }
+        const resend = getResendClient();
+        if (!resend) return { success: false, error: "RESEND_API_KEY not configured" };
 
-        const targetEmail = "anilregoju@gmail.com";
-        const ownerContact = "8247404515";
-        
         const itemsListHtml = items.map(item => `
             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
                 <td style="padding: 10px 0; color: #ffffff;">${item.name}</td>
@@ -136,26 +106,24 @@ async function sendOrderNotification({ orderId, customerName, customerEmail, cus
         const htmlContent = `
         <div style="font-family: 'Montserrat', Helvetica, Arial, sans-serif; background-color: #0f172a; color: #ffffff; padding: 40px 20px; border-radius: 15px; max-width: 600px; margin: 0 auto; border: 1px solid #b89b54; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(184, 155, 84, 0.2); padding-bottom: 20px;">
-                <span style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: 2px; color: #ffffff; text-transform: uppercase;">REGOJU</span><br/>
+                <span style="font-family: Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: 2px; color: #ffffff; text-transform: uppercase;">REGOJU</span><br/>
                 <span style="font-size: 9px; font-weight: 600; letter-spacing: 4px; color: #b89b54; text-transform: uppercase;">INTERIOR STUDIO</span>
             </div>
             
             <div style="background-color: #1e293b; padding: 25px; border-radius: 10px; border-left: 4px solid #b89b54; margin-bottom: 25px;">
-                <h2 style="font-family: 'Playfair Display', Georgia, serif; color: #b89b54; margin-top: 0; font-size: 20px; letter-spacing: 0.5px;">New Order Placed - Order #${orderId}</h2>
-                <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">
-                    A customer has placed a new order. Below are the order and customer details:
-                </p>
+                <h2 style="font-family: Georgia, serif; color: #b89b54; margin-top: 0; font-size: 20px;">New Order — #${orderId}</h2>
+                <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">A customer has placed a new order.</p>
                 
-                <h4 style="color: #b89b54; border-bottom: 1px solid rgba(184, 155, 84, 0.2); padding-bottom: 5px; margin-top: 0;">Customer Details</h4>
+                <h4 style="color: #b89b54; border-bottom: 1px solid rgba(184,155,84,0.2); padding-bottom: 5px; margin-top: 0;">Customer Details</h4>
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #cbd5e1; margin-bottom: 20px;">
                     <tr><td style="padding: 6px 0; font-weight: bold; width: 120px; color: #b89b54;">Name:</td><td style="padding: 6px 0; color: #ffffff;">${customerName}</td></tr>
                     <tr><td style="padding: 6px 0; font-weight: bold; color: #b89b54;">Email:</td><td style="padding: 6px 0; color: #ffffff;">${customerEmail}</td></tr>
                     <tr><td style="padding: 6px 0; font-weight: bold; color: #b89b54;">Phone:</td><td style="padding: 6px 0; color: #ffffff;">${customerPhone}</td></tr>
                     <tr><td style="padding: 6px 0; font-weight: bold; color: #b89b54;">Address:</td><td style="padding: 6px 0; color: #ffffff;">${address}</td></tr>
-                    <tr><td style="padding: 6px 0; font-weight: bold; color: #b89b54;">Payment Mode:</td><td style="padding: 6px 0; color: #ffffff;">${paymentMethod}</td></tr>
+                    <tr><td style="padding: 6px 0; font-weight: bold; color: #b89b54;">Payment:</td><td style="padding: 6px 0; color: #ffffff;">${paymentMethod}</td></tr>
                 </table>
 
-                <h4 style="color: #b89b54; border-bottom: 1px solid rgba(184, 155, 84, 0.2); padding-bottom: 5px; margin-top: 25px;">Items Ordered</h4>
+                <h4 style="color: #b89b54; border-bottom: 1px solid rgba(184,155,84,0.2); padding-bottom: 5px; margin-top: 25px;">Items Ordered</h4>
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #cbd5e1; margin-bottom: 15px;">
                     <thead>
                         <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
@@ -174,26 +142,31 @@ async function sendOrderNotification({ orderId, customerName, customerEmail, cus
                 </table>
             </div>
             
-            <div style="text-align: center; padding-top: 10px; font-size: 11px; color: #94a3b8; line-height: 1.5;">
-                <p style="margin: 5px 0;">This is an automated notification from your portfolio store checkout system.</p>
-                <p style="margin: 5px 0; color: #b89b54; font-weight: bold;">Owner Notification Desk: ${targetEmail} | Contact: ${ownerContact}</p>
+            <div style="text-align: center; padding-top: 10px; font-size: 11px; color: #94a3b8;">
+                <p style="margin: 5px 0;">Automated notification from your store checkout system.</p>
+                <p style="margin: 5px 0; color: #b89b54; font-weight: bold;">Owner: ${TARGET_EMAIL} | ${OWNER_CONTACT}</p>
             </div>
         </div>
         `;
 
-        const mailOptions = {
-            from: `"Regoju Interior Studio" <${process.env.SMTP_USER}>`,
-            to: targetEmail,
-            subject: `🛍️ New Order Placed: Order #${orderId} (₹${Math.round(totalPrice)})`,
+        const { data, error } = await resend.emails.send({
+            from: "Regoju Interior Studio <onboarding@resend.dev>",
+            to: [TARGET_EMAIL],
+            subject: `🛍️ New Order #${orderId} — ₹${Math.round(totalPrice)}`,
             html: htmlContent
-        };
+        });
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`✉️ Order email notification sent successfully! Message ID: ${info.messageId}`);
-        return { success: true, messageId: info.messageId };
+        if (error) {
+            console.error("❌ Resend order email failed:", error);
+            return { success: false, error };
+        }
+
+        console.log(`✉️ Order email sent via Resend! ID: ${data.id}`);
+        return { success: true, messageId: data.id };
+
     } catch (err) {
-        console.error("❌ Failed to send order email notification:", err);
-        return { success: false, error: err };
+        console.error("❌ Failed to send order notification:", err.message);
+        return { success: false, error: err.message };
     }
 }
 

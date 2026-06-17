@@ -141,62 +141,35 @@ app.get("/api/debug-env-xyz", (req, res) => {
     });
 });
 
-// Live SMTP test route — sends a real test email from the deployed server
+// Live Resend API test route — sends a real test email via Resend HTTP API
 app.get("/api/test-smtp-xyz", async (req, res) => {
-    const nodemailer = require("nodemailer");
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = parseInt(process.env.SMTP_PORT || "587");
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    const { Resend } = require("resend");
+    const apiKey = process.env.RESEND_API_KEY;
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
+    if (!apiKey) {
         return res.json({
             success: false,
-            error: "SMTP credentials missing in environment",
-            smtp_host: smtpHost || "MISSING",
-            smtp_user: smtpUser || "MISSING",
-            smtp_pass_length: smtpPass ? smtpPass.length : 0
+            error: "RESEND_API_KEY not set in Render environment variables",
+            fix: "Go to Render Dashboard > Environment > Add: RESEND_API_KEY"
         });
     }
 
     try {
-        const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: smtpPort,
-            secure: false,
-            auth: { user: smtpUser, pass: smtpPass }
+        const resend = new Resend(apiKey);
+        const { data, error } = await resend.emails.send({
+            from: "Regoju Interior Studio <onboarding@resend.dev>",
+            to: ["anilregoju@gmail.com"],
+            subject: "✅ Email Test from Render Server — Working!",
+            html: "<h2>🎉 Success!</h2><p>Resend API is working correctly from your deployed Render server.</p>"
         });
 
-        // Verify connection first
-        await transporter.verify();
+        if (error) {
+            return res.json({ success: false, error, api_key_prefix: apiKey.substring(0, 8) });
+        }
 
-        // Send test mail
-        const info = await transporter.sendMail({
-            from: `"Regoju Test" <${smtpUser}>`,
-            to: smtpUser,
-            subject: "✅ SMTP Test from Render Server",
-            text: "SMTP is working correctly from the deployed Render server!"
-        });
-
-        res.json({
-            success: true,
-            messageId: info.messageId,
-            response: info.response,
-            smtp_user: smtpUser,
-            smtp_host: smtpHost,
-            smtp_port: smtpPort
-        });
+        res.json({ success: true, messageId: data.id, message: "Check anilregoju@gmail.com inbox!" });
     } catch (err) {
-        res.json({
-            success: false,
-            error: err.message,
-            code: err.code,
-            command: err.command,
-            smtp_user: smtpUser,
-            smtp_host: smtpHost,
-            smtp_port: smtpPort,
-            smtp_pass_length: smtpPass ? smtpPass.length : 0
-        });
+        res.json({ success: false, error: err.message, api_key_prefix: apiKey.substring(0, 8) });
     }
 });
 
