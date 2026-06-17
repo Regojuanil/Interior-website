@@ -19,6 +19,7 @@ const app = express();
 // Middleware
 app.use(cors({
     origin: [
+        "https://interior-website-rosy-rho.vercel.app",
         "https://interior-website-z9e9.onrender.com",
         "http://localhost:5500",
         "http://127.0.0.1:5500",
