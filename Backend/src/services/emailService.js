@@ -2,22 +2,34 @@ const nodemailer = require("nodemailer");
 
 /**
  * Creates a fresh SMTP transporter.
- * Called per email send to avoid stale/expired connections on Render free tier.
+ * Uses robust TLS settings compatible with Render/cloud hosting environments.
  */
 function getTransporter() {
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        return nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT || "587"),
-            secure: process.env.SMTP_PORT === "465",
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            },
-            family: 4
-        });
+    const host = process.env.SMTP_HOST;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const port = parseInt(process.env.SMTP_PORT || "587");
+
+    if (!host || !user || !pass) {
+        console.warn(`⚠️ SMTP missing — HOST:${host||'UNSET'} USER:${user||'UNSET'} PASS_LEN:${pass?pass.length:0}`);
+        return null;
     }
-    return null;
+
+    console.log(`📧 Creating SMTP transporter: ${host}:${port} user=${user} pass_len=${pass.length}`);
+
+    return nodemailer.createTransport({
+        host: host,
+        port: port,
+        secure: port === 465,       // true for port 465, false for 587
+        requireTLS: port === 587,   // force STARTTLS on port 587
+        auth: {
+            user: user,
+            pass: pass
+        },
+        tls: {
+            rejectUnauthorized: false   // allow Render's cloud outbound TLS
+        }
+    });
 }
 
 /**
